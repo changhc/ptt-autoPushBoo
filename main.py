@@ -236,7 +236,6 @@ def main():
     CheckPushLength(boardName)
     ReadPushContent('./text')
     for i in range(len(pushContentList)):
-        start = time.time()
         Login(hostName, userId ,password)    
         Push(boardName, postId, pushOption, pushContentList[i])
         Disconnect()
