@@ -17,3 +17,5 @@ You will be prompted to input the followings in the beginning:
 * name of your input text file 
 * to push or to boo
 
+## Issues
+Sometimes the sleep time is not long enough so the task fails. Seeking a better way to detemine it.
