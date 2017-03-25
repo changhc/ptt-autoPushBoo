@@ -3,10 +3,11 @@ import telnetlib, sys, time, os, subprocess, re
 
 ###### CONSTANTS START ######
 hostName = 'ptt.cc'
-userId = sys.argv[1]
-password = sys.argv[2]
+userId = ""
+password = ""
 boardName = 'test'
 postId = '1DykZAQf'
+inputFile = './text'
 pushOption = 2
 
 # max length of push message in character
@@ -32,6 +33,21 @@ def CheckLatency(hostName):
     delayUnit = float(res.group(2)) / 15
     print("Testing loss", res.group(1), "%. Avg response time", float(res.group(2)), "ms.") 
     
+def ReadSettings():
+    global userId, password, boardName, postId, pushOption, inputFile
+    print('Hello! I\'m PttAutoPushBoo!')
+    userId = input('Please enter your user ID: ')
+    password = input('Please enter your password: ')
+    postId = input('Please enter the ID of the post you\'d like to push or boo: ')
+    boardName = input('Please enter the name of the board that the post belongs to: ')
+    inputFile = input('Please enter the name of your input file: ')
+    if(not os.path.isfile(inputFile)):
+        Exit(6)
+    pushOption = input('What would you like to do? (1) push  (2) boo  (3) arrow  ')
+    if(pushOption > '3' or pushOption < '1'):
+        print('Invalid option! I\'ll boo anyway.')
+        pushOption = 2
+    print('Let\'s start!')
 
 def Login(hostName, userId ,password) :
     global telnet
@@ -39,63 +55,61 @@ def Login(hostName, userId ,password) :
     time.sleep(delayUnit)
     content = telnet.read_very_eager().decode('big5','ignore')
     if u"系統過載" in content :
-        print("系統過載, 請稍後再來")
-        sys.exit(0)
+        Exit(5)
         
 
     if u"請輸入代號" in content:
-        print ("輸入帳號中...")
+        #print ("輸入帳號中...")
         telnet.write((userId + "\r\n" ).encode('ascii'))
         time.sleep(delayUnit)
-        print ("輸入密碼中...")
+        #print ("輸入密碼中...")
         telnet.write((password + "\r\n").encode('ascii'))
         time.sleep(5 * delayUnit)
         content = telnet.read_very_eager().decode('big5','ignore')
         #print content
         if u"密碼不對" in content:
-           print("密碼不對或無此帳號。程式結束")
-           sys.exit()
-           content = telnet.read_very_eager().decode('big5','ignore')
+           Exit(4)
+           #content = telnet.read_very_eager().decode('big5','ignore')
         if u"您想刪除其他重複登入" in content:
-           print ('刪除其他重複登入的連線....')
+           print ('Removing other connections....')
            telnet.write(("y\r\n").encode('ascii'))
            time.sleep(15 * delayUnit)
            content = telnet.read_very_eager().decode('big5','ignore')
         if u"請按任意鍵繼續" in content:
-           print ("資訊頁面，按任意鍵繼續...")
+           #print ("資訊頁面，按任意鍵繼續...")
            telnet.write(("\r\n" ).encode('ascii'))
            time.sleep(2 * delayUnit)
            content = telnet.read_very_eager().decode('big5','ignore')
         if u"您要刪除以上錯誤嘗試" in content:
-           print ("刪除以上錯誤嘗試...")
+           print ("Erasing false attempts...")
            telnet.write(("y\r\n").encode('ascii'))
            time.sleep(5 * delayUnit)
            content = telnet.read_very_eager().decode('big5','ignore')
         if u"您有一篇文章尚未完成" in content:
-           print ('刪除尚未完成的文章....')
+           print ('Erasing undone posts....')
            # 放棄尚未編輯完的文章
            telnet.write(("q\r\n").encode('ascii'))
            time.sleep(5 * delayUnit)   
            content = telnet.read_very_eager().decode('big5','ignore')
-        print ("--- 登入完成 ---")
+        #print ("--- 登入完成 ---")
         
     else:
-        print ("沒有可輸入帳號的欄位，網站可能掛了")
+        Exit(7)
 
 def Disconnect(error=False) :
-    if(not error):
-        print ("登出中...")
+    #if(not error):
+    #    print ("登出中...")
     # q = 上一頁，直到回到首頁為止，g = 離開，再見
     telnet.write(("qqqqqqqqqg\r\ny\r\n" ).encode('ascii'))
     time.sleep(5 * delayUnit)
-    if(not error):
-        print ("--- 登出完成 ---")
+    #if(not error):
+    #    print ("--- 登出完成 ---")
     telnet.close()
 
 def Push(boardName, postId, pushType, pushContent):
-    print('--- 開始推文 ---')
+    #print('--- 開始推文 ---')
     GoToBoard(boardName)
-    print('進入看板')
+    #print('進入看板')
     # go to post
     telnet.write(('#').encode('ascii'))
     time.sleep(delayUnit)
@@ -107,7 +121,7 @@ def Push(boardName, postId, pushType, pushContent):
         Exit(2)
     elif u"本文已刪除" in content:
         Exit(3)
-    print('找到文章')
+    #print('找到文章')
 
     # Shift-X
     telnet.write(('X').encode('ascii'))
@@ -118,7 +132,7 @@ def Push(boardName, postId, pushType, pushContent):
     time.sleep(delayUnit)
     telnet.write(('y').encode('ascii'))
     time.sleep(delayUnit)
-    print ("--- 推文成功 ---")
+    #print ("--- 推文成功 ---")
 
 def ReadPushContent(filename):
     global pushContentList
@@ -127,8 +141,8 @@ def ReadPushContent(filename):
     for line in file:
         if(line != '\n' and line != '\r\n'):
             string = string + line
-    string = string.replace('\n', '')
     string = string.replace('\r\n', '')
+    string = string.replace('\n', '')
 
     substring = ""
     substringEng = ""
@@ -222,25 +236,32 @@ def CheckBoardExists(boardName):
 
 def Exit(errorCode):
     print({
-        1: "找不到這個看板!",
-        2: "找不到這個文章代碼!",
-        3: "本文已刪除!"
+        1: "Cannot find this board.",
+        2: "Cannot find this post.",
+        3: "This post is removed.",
+        4: "Wrong password or invalid account.",
+        5: "The host is suffering heavy load. Try again later.",
+        6: "Invalid Input File Name.",
+        7: "The host may be offline now."
     }[errorCode])
     Disconnect()
     sys.exit(-1)
 
 def main():
-    print("Start Pushing...")
+
+    ReadSettings()
     start = time.time()
     CheckLatency(hostName)
     CheckPushLength(boardName)
-    ReadPushContent('./text')
+    ReadPushContent(inputFile)
     for i in range(len(pushContentList)):
+        print("Now pushing: " + str(i + 1) + ' / ' + str(len(pushContentList)), end='\r', flush=True)
         Login(hostName, userId ,password)    
         Push(boardName, postId, pushOption, pushContentList[i])
         Disconnect()
+    print("Successfully pushed!")
     print("Total time:", time.time() - start)
-    
+
 if __name__=="__main__" :
     main()
 
