@@ -21,7 +21,7 @@ maxIdLength = 12
 # when longer internet delay, adjust this variable manually
 delayUnit = 0.5
 pushLength = 48
-pushContentList = [];
+pushContentList = []
 ###### GLOBAL VAR END ######
 
 def CheckLatency(hostName):
@@ -42,7 +42,9 @@ def ReadSettings():
     boardName = input('Please enter the name of the board that the post belongs to: ')
     inputFile = input('Please enter the name of your input file: ')
     if(not os.path.isfile(inputFile)):
-        Exit(6)
+        if(not os.path.isfile('./text')):
+        	Exit(6)
+        print("OK, I'll use the default text file.")
     pushOption = input('What would you like to do? (1) push  (2) boo  (3) arrow  ')
     if(pushOption > '3' or pushOption < '1'):
         print('Invalid option! I\'ll boo anyway.')
@@ -57,7 +59,6 @@ def Login(hostName, userId ,password) :
     if u"系統過載" in content :
         Exit(5)
         
-
     if u"請輸入代號" in content:
         #print ("輸入帳號中...")
         telnet.write((userId + "\r\n" ).encode('ascii'))
@@ -74,6 +75,10 @@ def Login(hostName, userId ,password) :
            print ('Removing other connections....')
            telnet.write(("y\r\n").encode('ascii'))
            time.sleep(15 * delayUnit)
+           content = telnet.read_very_eager().decode('big5','ignore')
+        if u"動畫播放中" in content:
+           telnet.write(("\r\n" ).encode('ascii'))
+           time.sleep(2 * delayUnit)
            content = telnet.read_very_eager().decode('big5','ignore')
         if u"請按任意鍵繼續" in content:
            #print ("資訊頁面，按任意鍵繼續...")
@@ -202,8 +207,9 @@ def CheckPushLength(boardName):
     global pushLength
     Login(hostName, userId ,password)
     GoToBoard(boardName)
-        # check board settings
+    # check board settings
     telnet.write(('i').encode('ascii'))
+    time.sleep(delayUnit)
     content = telnet.read_very_eager().decode('big5','ignore')
     pushLength = 0
     if u"推文時 不用對齊 開頭" in content:
@@ -213,6 +219,7 @@ def CheckPushLength(boardName):
     else:
         pushLength = maxPushLengthWithIP + pushLength
     telnet.write(('i').encode('ascii'))
+    time.sleep(delayUnit)
     Disconnect()
 
 def GoToBoard(boardName):
@@ -221,13 +228,14 @@ def GoToBoard(boardName):
         Exit(1)
     telnet.write(('\r\n').encode('big5'))
     time.sleep(delayUnit)       
-    telnet.write(("d").encode('ascii'))   # in case of welcoming message
+    telnet.write(("dd").encode('ascii'))   # in case of welcoming message
     time.sleep(2 * delayUnit)
 
 def CheckBoardExists(boardName):
     telnet.write(('s').encode('ascii'))
+    time.sleep(2 * delayUnit)
     telnet.write(boardName.encode('big5'))
-    time.sleep(delayUnit)
+    time.sleep(2 * delayUnit)
     content = telnet.read_very_eager().decode('big5','ignore')
     if(boardName in content):
         return True
@@ -261,7 +269,7 @@ def main():
         Disconnect()
     print("Successfully pushed!")
     print("Total time:", time.time() - start)
-
+	
 if __name__=="__main__" :
     main()
 
