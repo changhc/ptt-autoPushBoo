@@ -1,5 +1,5 @@
 # ptt-autoPushBoo
-A robot that can help you push or boo continuously under certain posts.
+A robot that can help you push or boo continuously under a certain post.
 * Inspired by [this repo](https://github.com/twtrubiks/PttAutoLoginPost).
 
 ## Features
