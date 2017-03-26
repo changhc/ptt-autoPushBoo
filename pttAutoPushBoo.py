@@ -27,26 +27,35 @@ pushContentList = []
 def CheckLatency(hostName):
     global delayUnit
     print("Measuring host latency...")
-    ping = subprocess.Popen(['ping', '-c', '10', hostName], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    ping = subprocess.Popen(['ping', '-c', '10', hostName], stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     res, nothing = ping.communicate()
-    res = re.match(".*([0-9]+)% .*\/([0-9.]+)\/[0-9.]+\/.*", res.decode('ascii'), flags=re.DOTALL)
-    delayUnit = float(res.group(2)) / 15
-    print("Testing loss", res.group(1), "%. Avg response time", float(res.group(2)), "ms.") 
+    res = re.match(".*([0-9]+)% .*\/([0-9.]+)\/[0-9.]+\/.*", res.decode('ascii'), flags = re.DOTALL)
+    delayCoeff = 18
+    if res.group(1) != '0':
+        delayCoeff = 15
+    delayUnit = float(res.group(2)) / delayCoeff
+    print("Testing loss {0} %. Avg response time {1} ms.".format(res.group(1), res.group(2)))
     
 def ReadSettings():
     global userId, password, boardName, postId, pushOption, inputFile
     print('Hello! I\'m PttAutoPushBoo!')
     userId = input('Please enter your user ID: ')
     password = input('Please enter your password: ')
-    postId = input('Please enter the ID of the post you\'d like to push or boo: ')
+    postId = input('Please enter the AID of the post you\'d like to push or boo\n(including the \'#\'): ')
+    raw = re.match("#([A-Za-z0-9_]+)", postId)
+    try:
+        postId = raw.group(1)
+    except:
+        postId = postId
     boardName = input('Please enter the name of the board that the post belongs to: ')
     inputFile = input('Please enter the name of your input file: ')
-    if(not os.path.isfile(inputFile)):
+    if not os.path.isfile(inputFile):
         if(not os.path.isfile('./text')):
         	Exit(6)
         print("OK, I'll use the default text file.")
+        inputFile = './text'
     pushOption = input('What would you like to do? (1) push  (2) boo  (3) arrow  ')
-    if(pushOption > '3' or pushOption < '1'):
+    if pushOption > '3' or pushOption < '1':
         print('Invalid option! I\'ll boo anyway.')
         pushOption = 2
     print('Let\'s start!')
@@ -106,7 +115,7 @@ def Disconnect(error=False) :
     #    print ("登出中...")
     # q = 上一頁，直到回到首頁為止，g = 離開，再見
     telnet.write(("qqqqqqqqqg\r\ny\r\n" ).encode('ascii'))
-    time.sleep(5 * delayUnit)
+    time.sleep(3 * delayUnit)
     #if(not error):
     #    print ("--- 登出完成 ---")
     telnet.close()
@@ -170,11 +179,11 @@ def ReadPushContent(filename):
                     byteLength = byteLength + len(substringEng)
                     substring = substring + substringEng
                 substringEng = ""
-            if (byteLength + 2 > pushLength):
+            if byteLength + 2 > pushLength:
                 pushContentList.append(substring)
                 substring = string[i]
                 byteLength = 2
-            elif(byteLength + 2 == pushLength):
+            elif byteLength + 2 == pushLength:
                 substring = substring + string[i]
                 pushContentList.append(substring)
                 byteLength = 0
@@ -218,13 +227,11 @@ def CheckPushLength(boardName):
         pushLength = maxPushLength + pushLength
     else:
         pushLength = maxPushLengthWithIP + pushLength
-    telnet.write(('i').encode('ascii'))
-    time.sleep(delayUnit)
     Disconnect()
 
 def GoToBoard(boardName):
     # s 進入要發文的看板
-    if(not CheckBoardExists(boardName)):
+    if not CheckBoardExists(boardName):
         Exit(1)
     telnet.write(('\r\n').encode('big5'))
     time.sleep(delayUnit)       
@@ -233,11 +240,11 @@ def GoToBoard(boardName):
 
 def CheckBoardExists(boardName):
     telnet.write(('s').encode('ascii'))
-    time.sleep(2 * delayUnit)
+    time.sleep(delayUnit)
     telnet.write(boardName.encode('big5'))
     time.sleep(2 * delayUnit)
     content = telnet.read_very_eager().decode('big5','ignore')
-    if(boardName in content):
+    if boardName in content:
         return True
     else:
         return False
@@ -258,17 +265,19 @@ def Exit(errorCode):
 def main():
 
     ReadSettings()
-    start = time.time()
+    
     CheckLatency(hostName)
+    start = time.time()
+    print("Initializing...")
     CheckPushLength(boardName)
     ReadPushContent(inputFile)
     for i in range(len(pushContentList)):
-        print("Now pushing: " + str(i + 1) + ' / ' + str(len(pushContentList)), end='\r', flush=True)
+        print("Now pushing: {0} / {1}".format(i + 1, len(pushContentList)), end='\r', flush=True)
         Login(hostName, userId ,password)    
         Push(boardName, postId, pushOption, pushContentList[i])
         Disconnect()
     print("Successfully pushed!")
-    print("Total time:", time.time() - start)
+    print("Total time: {0} sec.".format(time.time() - start))
 	
 if __name__=="__main__" :
     main()
